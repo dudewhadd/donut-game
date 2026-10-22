@@ -206,6 +206,8 @@ function initGame() {
   let fallenCount = 0;      // donuts erased this level
   const FALL_TARGET = 20;   // clear line appears after exactly 20 erasures
   let clearLineActive = false;
+  let survivalStart = 0;      // timestamp when survival countdown begins
+  const SURVIVAL_TIME = 5000; // ms to survive after 20 erasures
   let lineY = 0;
   let spawnInterval = 2200; // ms between drops
   let lastSpawn = 0;
@@ -330,8 +332,9 @@ function initGame() {
     } else {
       score += SIZE_DEFS.S.score;
       fallenCount++;
-      if (fallenCount >= FALL_TARGET) {
+      if (fallenCount >= FALL_TARGET && !clearLineActive) {
         clearLineActive = true;
+        survivalStart = performance.now();
       }
     }
     updateHUD();
@@ -354,14 +357,10 @@ function initGame() {
 
   // ---------- Win / lose ----------
   function checkWin() {
-    if (!clearLineActive || donuts.length === 0) return;
-    for (const d of donuts) {
-      const b = d.body;
-      const settled = b.speed < 0.6 && b.angularSpeed < 0.05;
-      // Donut must rest COMPLETELY below the line: its top edge is under lineY
-      if (!settled || (b.position.y - d.radius) <= lineY) return;
+    if (!clearLineActive) return;
+    if (performance.now() - survivalStart >= SURVIVAL_TIME) {
+      winLevel();
     }
-    winLevel();
   }
   function checkLose() {
     const dangerY = H * 0.15; // stack reached the top of the screen
@@ -401,6 +400,7 @@ function initGame() {
     }
     fallenCount = 0;
     clearLineActive = false;
+    survivalStart = 0;
     spawnInterval = Math.max(700, 2200 - (level - 1) * 250); // fall rate increases per level
     createEngine();
     resize();
@@ -447,7 +447,8 @@ function initGame() {
     ctx.fillStyle = '#ffd166';
     ctx.font = '700 16px -apple-system, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('CLEAR LINE — settle all donuts below', 14, lineY - 10);
+    const remaining = Math.max(0, (SURVIVAL_TIME - (performance.now() - survivalStart)) / 1000);
+    ctx.fillText('SURVIVE ' + remaining.toFixed(1) + 's', 14, lineY - 10);
     ctx.restore();
   }
 
